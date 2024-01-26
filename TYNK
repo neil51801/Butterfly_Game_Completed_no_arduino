@@ -1,0 +1,153 @@
+import pygame
+from sys import exit
+from random import randint
+# 01_25_24
+# PelvicFloorGame_butterfly_01_25_24
+# Initialize Pygame
+pygame.init()
+
+# Initialize screen and clock
+screen_width, screen_height = 1200, 800
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption('Butterfly Game')
+clock = pygame.time.Clock()
+
+# Font for the score
+font = pygame.font.Font(None, 36)
+
+# Load images and sounds
+butterfly_image = pygame.image.load('C:\\Users\\neilm\\Pictures\\pygame\\butterfly.png').convert_alpha()
+butterfly_image = pygame.transform.scale(butterfly_image, (80, 80))
+
+gem_image = pygame.image.load('C:\\Users\\neilm\\Pictures\\pygame\\gem.png').convert_alpha()
+gem_image = pygame.transform.scale(gem_image, (50, 50))
+
+greenery_image = pygame.image.load('C:\\Users\\neilm\\Pictures\\pygame\\greenery.png').convert_alpha()
+greenery_image = pygame.transform.scale(greenery_image, (screen_width, screen_height))
+
+background_music = pygame.mixer.Sound('C:\\Users\\neilm\\Pictures\\pygame\\background_music.mp3')
+jump_sound = pygame.mixer.Sound('C:\\Users\\neilm\\Pictures\\pygame\\jump.mp3')
+
+# Define colors
+WHITE = (255, 255, 255)
+BLUE = (135, 206, 250)
+
+# Butterfly class
+class Butterfly(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = butterfly_image
+        self.rect = self.image.get_rect(midleft=(60, 400))
+        self.gravity = 0
+
+    def jump(self):
+        self.gravity = -10
+        jump_sound.play()
+
+    def apply_gravity(self):
+        self.gravity += 1
+        self.rect.y += self.gravity
+        if self.rect.bottom >= screen_height:
+            self.rect.bottom = screen_height
+            self.gravity = 0
+
+    def update(self):
+        self.apply_gravity()
+
+# Gem class
+class Gem(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = gem_image
+        self.rect = self.image.get_rect(midbottom=(randint(1200, 1600), 400))
+        self.speed = 5
+
+    def update(self):
+        self.rect.x -= self.speed
+        if self.rect.x < 0:
+            self.kill()
+
+# ButterflyGame class
+class ButterflyGame:
+    def __init__(self):
+        self.butterfly = Butterfly()
+        self.gem_group = pygame.sprite.Group()
+        self.score = 0
+        self.game_active = False
+        self.start_time = 0
+        self.gem_timer = pygame.time.set_timer(pygame.USEREVENT + 1, 1000)
+        self.gem_spawn_count = 0
+        self.gem_spawn_interval = 10
+        self.gem_break_interval = 2
+
+    def start_game(self):
+        self.game_active = True
+        self.start_time = int(pygame.time.get_ticks() / 1000)
+        background_music.play(loops=-1)
+
+    def end_game(self):
+        self.game_active = False
+        background_music.stop()
+        # Display end screen or other actions
+
+    def spawn_gem(self):
+        gem = Gem()
+        self.gem_group.add(gem)
+        self.gem_spawn_count += 1
+
+    def display_score(self):
+        current_time = int(pygame.time.get_ticks() / 1000) - self.start_time
+        score_surf = font.render(f'Score: {self.score}', False, WHITE)
+        score_rect = score_surf.get_rect(topleft=(10, 10))
+        screen.blit(score_surf, score_rect)
+
+    def collision_detection(self):
+        if pygame.sprite.spritecollide(self.butterfly, self.gem_group, True):
+            self.score += 1
+
+    def main_loop(self):
+        while True:
+            # Move the calculation of current_time inside the loop
+            current_time = int(pygame.time.get_ticks() / 1000) - self.start_time
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+
+                if self.game_active:
+                    if event.type == pygame.USEREVENT + 1:
+                        if self.gem_spawn_count < self.gem_spawn_interval:
+                            self.spawn_gem()
+                            self.gem_spawn_count += 1
+                        elif self.gem_spawn_interval <= current_time % (
+                                self.gem_spawn_interval + self.gem_break_interval) < self.gem_spawn_interval + 1:
+                            self.gem_spawn_count = 0
+
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                        self.butterfly.jump()
+
+            screen.blit(greenery_image, (0, 0))  # Draw the greenery image
+
+            if self.game_active:
+                self.gem_group.draw(screen)
+                self.gem_group.update()
+
+                self.butterfly.update()
+                screen.blit(self.butterfly.image, self.butterfly.rect)
+
+                self.collision_detection()
+                self.display_score()
+
+                if pygame.key.get_pressed()[pygame.K_SPACE]:
+                    self.butterfly.jump()
+
+            pygame.display.update()
+            clock.tick(60)
+
+
+# Run the game
+if __name__ == "__main__":
+    game = ButterflyGame()
+    game.start_game()
+    game.main_loop()
